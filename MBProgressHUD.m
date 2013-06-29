@@ -520,7 +520,12 @@ static const CGFloat kDetailsLabelFontSize = 12.f;
 	totalSize.width = MAX(totalSize.width, indicatorF.size.width);
 	totalSize.height += indicatorF.size.height;
 	
-	CGSize labelSize = [label.text sizeWithFont:label.font];
+    CGSize labelSize = CGSizeZero;
+    if (![label.text isEqualToString:@""]) {
+        NSDictionary *attributes = @{NSFontAttributeName: label.font};
+        labelSize = [label.text sizeWithAttributes:attributes];
+    }
+
 	labelSize.width = MIN(labelSize.width, maxWidth);
 	totalSize.width = MAX(totalSize.width, labelSize.width);
 	totalSize.height += labelSize.height;
@@ -530,9 +535,17 @@ static const CGFloat kDetailsLabelFontSize = 12.f;
 
 	CGFloat remainingHeight = bounds.size.height - totalSize.height - kPadding - 4 * margin; 
 	CGSize maxSize = CGSizeMake(maxWidth, remainingHeight);
-	CGSize detailsLabelSize = [detailsLabel.text sizeWithFont:detailsLabel.font 
-								constrainedToSize:maxSize lineBreakMode:detailsLabel.lineBreakMode];
-	totalSize.width = MAX(totalSize.width, detailsLabelSize.width);
+    
+    CGSize detailsLabelSize = CGSizeZero;
+    if (![detailsLabel.text isEqualToString:@""]) {
+        NSDictionary *attributes = @{NSFontAttributeName: detailsLabel.font};
+        detailsLabelSize = [detailsLabel.text boundingRectWithSize:maxSize
+                                                           options:(NSStringDrawingUsesLineFragmentOrigin | NSStringDrawingUsesDeviceMetrics)
+                                                        attributes:attributes
+                                                           context:nil].size;
+    }
+	
+    totalSize.width = MAX(totalSize.width, detailsLabelSize.width);
 	totalSize.height += detailsLabelSize.height;
 	if (detailsLabelSize.height > 0.f && (indicatorF.size.height > 0.f || labelSize.height > 0.f)) {
 		totalSize.height += kPadding;
@@ -568,7 +581,7 @@ static const CGFloat kDetailsLabelFontSize = 12.f;
 	detailsLabelF.size = detailsLabelSize;
 	detailsLabel.frame = detailsLabelF;
 	
-	// Enforce minsize and quare rules
+	// Enforce minsize and square rules
 	if (square) {
 		CGFloat max = MAX(totalSize.width, totalSize.height);
 		if (max <= bounds.size.width - 2 * margin) {
