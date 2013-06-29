@@ -282,7 +282,6 @@
 	HUD.customView = [[[UIImageView alloc] initWithImage:[UIImage imageNamed:@"37x-Checkmark.png"]] autorelease];
 	HUD.mode = MBProgressHUDModeCustomView;
 	HUD.labelText = @"Completed";
-	HUD.detailsLabelText = @"Double tap and watch the console";
 	sleep(2);
 }
 
