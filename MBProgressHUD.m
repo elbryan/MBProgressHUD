@@ -836,7 +836,9 @@ static const CGFloat kDetailsLabelFontSize = 12.f;
 
 - (void) handleTap: (UITapGestureRecognizer*)recognizer {
     if (recognizer == _tapRecognizer) {
-        _tapGestureBlock();
+        dispatch_async(dispatch_get_main_queue(), ^{
+            _tapGestureBlock();
+        });
     }
 }
 
