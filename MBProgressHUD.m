@@ -22,6 +22,22 @@
     #define MBLabelAlignmentCenter UITextAlignmentCenter
 #endif
 
+#if __IPHONE_OS_VERSION_MIN_REQUIRED >= 70000
+	#define MB_TEXTSIZE(text, font) [text length] > 0 ? [text \
+		sizeWithAttributes:@{NSFontAttributeName:font}] : CGSizeZero;
+#else
+	#define MB_TEXTSIZE(text, font) [text sizeWithFont:font];
+#endif
+
+#if __IPHONE_OS_VERSION_MIN_REQUIRED >= 70000
+	#define MB_MULTILINE_TEXTSIZE(text, font, maxSize, mode) [text length] > 0 ? [text \
+		boundingRectWithSize:maxSize options:(NSStringDrawingUsesLineFragmentOrigin) \
+		attributes:@{NSFontAttributeName:font} context:nil].size : CGSizeZero;
+#else
+	#define MB_MULTILINE_TEXTSIZE(text, font, maxSize, mode) [text sizeWithFont:font \
+		constrainedToSize:maxSize lineBreakMode:mode];
+#endif
+
 
 static const CGFloat kPadding = 4.f;
 static const CGFloat kLabelFontSize = 16.f;
@@ -521,12 +537,7 @@ static const CGFloat kDetailsLabelFontSize = 12.f;
 	totalSize.width = MAX(totalSize.width, indicatorF.size.width);
 	totalSize.height += indicatorF.size.height;
 	
-    CGSize labelSize = CGSizeZero;
-    if (![label.text isEqualToString:@""]) {
-        NSDictionary *attributes = @{NSFontAttributeName: label.font};
-        labelSize = [label.text sizeWithAttributes:attributes];
-    }
-
+	CGSize labelSize = MB_TEXTSIZE(label.text, label.font);
 	labelSize.width = MIN(labelSize.width, maxWidth);
 	totalSize.width = MAX(totalSize.width, labelSize.width);
 	totalSize.height += labelSize.height;
@@ -536,16 +547,7 @@ static const CGFloat kDetailsLabelFontSize = 12.f;
 
 	CGFloat remainingHeight = bounds.size.height - totalSize.height - kPadding - 4 * margin; 
 	CGSize maxSize = CGSizeMake(maxWidth, remainingHeight);
-    
-    CGSize detailsLabelSize = CGSizeZero;
-    if (![detailsLabel.text isEqualToString:@""]) {
-        NSDictionary *attributes = @{NSFontAttributeName: detailsLabel.font};
-        detailsLabelSize = [detailsLabel.text boundingRectWithSize:maxSize
-                                                           options:(NSStringDrawingUsesLineFragmentOrigin | NSStringDrawingUsesDeviceMetrics)
-                                                        attributes:attributes
-                                                           context:nil].size;
-    }
-	
+	CGSize detailsLabelSize = MB_MULTILINE_TEXTSIZE(detailsLabel.text, detailsLabel.font, maxSize, detailsLabel.lineBreakMode);
     totalSize.width = MAX(totalSize.width, detailsLabelSize.width);
 	totalSize.height += detailsLabelSize.height;
 	if (detailsLabelSize.height > 0.f && (indicatorF.size.height > 0.f || labelSize.height > 0.f)) {
@@ -599,7 +601,7 @@ static const CGFloat kDetailsLabelFontSize = 12.f;
 		totalSize.height = minSize.height;
 	}
 	
-	self.size = totalSize;    
+	self.size = totalSize;
 }
 
 #pragma mark BG Drawing
