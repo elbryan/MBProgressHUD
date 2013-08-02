@@ -5,6 +5,7 @@
 //
 
 #import "MBProgressHUD.h"
+#import "UIImage+ImageEffects.h"
 
 #if __has_feature(objc_arc)
 	#define MB_AUTORELEASE(exp) exp
@@ -36,6 +37,12 @@
 #else
 	#define MB_MULTILINE_TEXTSIZE(text, font, maxSize, mode) [text length] > 0 ? [text \
 		sizeWithFont:font constrainedToSize:maxSize lineBreakMode:mode] : CGSizeZero;
+#endif
+
+#if __IPHONE_OS_VERSION_MIN_REQUIRED >= 70000
+    #define MB_DRAW_VIEW_IN_RECT(view, rect) [view drawViewHierarchyInRect:rect afterScreenUpdates:YES];
+#else
+    #define MB_DRAW_VIEW_IN_RECT(view, rect) [view.layer renderInContext:UIGraphicsGetCurrentContext()];
 #endif
 
 
@@ -678,34 +685,26 @@ static const CGFloat kDetailsLabelFontSize = 12.f;
 	
 	CGRect renderRect = [viewToRender convertRect:rect fromView:self];
 	
-	UIGraphicsBeginImageContext(rect.size);
-	
-	CGContextTranslateCTM(UIGraphicsGetCurrentContext(), -CGRectGetMinX(renderRect), CGRectGetMaxY(renderRect));
-	CGContextScaleCTM(UIGraphicsGetCurrentContext(), 1.0f, -1.0f);
-	
-	[viewToRender.layer renderInContext:UIGraphicsGetCurrentContext()];
-	
-	CGImageRef blurInputReference = [UIGraphicsGetImageFromCurrentImageContext() CGImage];
-	
-	UIGraphicsEndImageContext();
-	
-	self.hidden = NO; // make the hud visible again for display!
-	
-	// blur the rendered background
-	CIImage* inputImage = [CIImage imageWithCGImage:blurInputReference];
-	CIFilter* blur = [CIFilter filterWithName:@"CIGaussianBlur"];
-	[blur setDefaults];
-	[blur setValue:@(blurRadius) forKey:@"inputRadius"];
-	[blur setValue:inputImage forKey:@"inputImage"];
-	
-	CIImage* outputImage = [blur outputImage];
-	CIContext* context = [CIContext contextWithOptions:nil];
-	CGImageRef blurOutput = [context createCGImage:outputImage fromRect:outputImage.extent];
-	
+	UIGraphicsBeginImageContextWithOptions(renderRect.size, YES, 0);
+    
+    CGContextRef context = UIGraphicsGetCurrentContext();
+    
+    // Rotate the context
+    CGContextTranslateCTM(context, 0.0, renderRect.size.height);
+    CGContextScaleCTM(context, 1.0, -1.0);
+    
+    MB_DRAW_VIEW_IN_RECT(viewToRender, renderRect);
+    
+    UIImage *newImage = UIGraphicsGetImageFromCurrentImageContext();
+    
+    UIGraphicsEndImageContext();
+    
+    UIImage *outputImage = [newImage applyLightEffect];
+
+    self.hidden = NO;
+
 	// render the blured background - note we need to use the extent of the output image, as it is larger as the original rect!
-	CGContextDrawImage(UIGraphicsGetCurrentContext(), outputImage.extent, blurOutput);
-	
-	CGImageRelease(blurOutput);
+	CGContextDrawImage(UIGraphicsGetCurrentContext(), rect, outputImage.CGImage);
 }
 
 #pragma mark - KVO
