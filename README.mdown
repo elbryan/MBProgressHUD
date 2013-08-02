@@ -17,6 +17,7 @@ MBProgressHUD works on any iOS version and is compatible with both ARC and non-A
 * Foundation.framework
 * UIKit.framework
 * CoreGraphics.framework
+* Accelerate.framework
 
 You will need LLVM 3.0 or later in order to build MBProgressHUD. 
 
