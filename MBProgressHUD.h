@@ -361,9 +361,9 @@ typedef void (^MBProgressHUDCompletionBlock)();
 @property (assign) BOOL dimBackground;
 
 /**
- * Amount of blur to be applied to the background. Default value is 0 (no blur)
+ * Cover the HUD background view with a blurred background of the back view. Default is NO.
  */
-@property (assign) CGFloat backgroundBlurAmount;
+@property (assign) BOOL blurBackground;
 
 /*
  * Grace period is the time (in seconds) that the invoked method may be run without

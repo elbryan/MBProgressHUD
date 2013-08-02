@@ -110,7 +110,7 @@ static const CGFloat kDetailsLabelFontSize = 12.f;
 @synthesize square;
 @synthesize margin;
 @synthesize dimBackground;
-@synthesize backgroundBlurAmount;
+@synthesize blurBackground;
 @synthesize graceTime;
 @synthesize minShowTime;
 @synthesize graceTimer;
@@ -196,7 +196,7 @@ static const CGFloat kDetailsLabelFontSize = 12.f;
 		self.xOffset = 0.0f;
 		self.yOffset = 0.0f;
 		self.dimBackground = NO;
-        self.backgroundBlurAmount = 0.0f;
+        self.blurBackground = NO;
 		self.margin = 20.0f;
 		self.graceTime = 0.0f;
 		self.minShowTime = 0.0f;
@@ -645,7 +645,9 @@ static const CGFloat kDetailsLabelFontSize = 12.f;
     }
     
     // Apply background blur
-    [self drawBlurredBackground:self.backgroundBlurAmount inRect:self.bounds];
+    if (self.blurBackground) {
+        [self drawBlurredBackgroundInRect:self.bounds];
+    }
 	
 	// Center HUD
 	CGRect allRect = self.bounds;
@@ -665,9 +667,9 @@ static const CGFloat kDetailsLabelFontSize = 12.f;
 	UIGraphicsPopContext();
 }
 
-- (void)drawBlurredBackground:(CGFloat)blurRadius inRect:(CGRect)rect
+- (void)drawBlurredBackgroundInRect:(CGRect)rect
 {
-	if (blurRadius == 0.0f || self.hidden) {
+	if (self.hidden) {
 		return;
 	}
 	

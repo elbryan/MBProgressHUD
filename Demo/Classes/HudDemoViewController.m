@@ -235,7 +235,7 @@
 	[self.navigationController.view addSubview:HUD];
 	
 	// Set the hud to display with a color
-	HUD.backgroundBlurAmount = 8.0f;
+	HUD.blurBackground = YES;
 	
 	HUD.delegate = self;
 	[HUD showWhileExecuting:@selector(myTask) onTarget:self withObject:nil animated:YES];
