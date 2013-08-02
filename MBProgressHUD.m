@@ -5,6 +5,7 @@
 //
 
 #import "MBProgressHUD.h"
+#import "UIImage+ImageEffects.h"
 
 #if __has_feature(objc_arc)
 	#define MB_AUTORELEASE(exp) exp
@@ -20,6 +21,28 @@
     #define MBLabelAlignmentCenter NSTextAlignmentCenter
 #else
     #define MBLabelAlignmentCenter UITextAlignmentCenter
+#endif
+
+#if __IPHONE_OS_VERSION_MIN_REQUIRED >= 70000
+	#define MB_TEXTSIZE(text, font) [text length] > 0 ? [text \
+		sizeWithAttributes:@{NSFontAttributeName:font}] : CGSizeZero;
+#else
+	#define MB_TEXTSIZE(text, font) [text length] > 0 ? [text sizeWithFont:font] : CGSizeZero;
+#endif
+
+#if __IPHONE_OS_VERSION_MIN_REQUIRED >= 70000
+	#define MB_MULTILINE_TEXTSIZE(text, font, maxSize, mode) [text length] > 0 ? [text \
+		boundingRectWithSize:maxSize options:(NSStringDrawingUsesLineFragmentOrigin) \
+		attributes:@{NSFontAttributeName:font} context:nil].size : CGSizeZero;
+#else
+	#define MB_MULTILINE_TEXTSIZE(text, font, maxSize, mode) [text length] > 0 ? [text \
+		sizeWithFont:font constrainedToSize:maxSize lineBreakMode:mode] : CGSizeZero;
+#endif
+
+#if __IPHONE_OS_VERSION_MIN_REQUIRED >= 70000
+    #define MB_DRAW_VIEW_IN_RECT(view, rect) [view drawViewHierarchyInRect:rect afterScreenUpdates:YES];
+#else
+    #define MB_DRAW_VIEW_IN_RECT(view, rect) [view.layer renderInContext:UIGraphicsGetCurrentContext()];
 #endif
 
 
@@ -54,6 +77,9 @@ static const CGFloat kDetailsLabelFontSize = 12.f;
 @property (atomic, MB_STRONG) NSTimer *minShowTimer;
 @property (atomic, MB_STRONG) NSDate *showStarted;
 @property (atomic, assign) CGSize size;
+
+// Private
+@property (MB_STRONG) UITapGestureRecognizer *tapRecognizer;
 
 @end
 
@@ -100,6 +126,8 @@ static const CGFloat kDetailsLabelFontSize = 12.f;
 @synthesize size;
 #if NS_BLOCKS_AVAILABLE
 @synthesize completionBlock;
+@synthesize tapRecognizer = _tapRecognizer;
+@synthesize tapGestureBlock = _tapGestureBlock;
 #endif
 
 #pragma mark - Class methods
@@ -220,6 +248,7 @@ static const CGFloat kDetailsLabelFontSize = 12.f;
 	[customView release];
 #if NS_BLOCKS_AVAILABLE
 	[completionBlock release];
+    [_tapRecognizer release];
 #endif
 	[super dealloc];
 #endif
@@ -657,34 +686,26 @@ static const CGFloat kDetailsLabelFontSize = 12.f;
 	
 	CGRect renderRect = [viewToRender convertRect:rect fromView:self];
 	
-	UIGraphicsBeginImageContext(rect.size);
-	
-	CGContextTranslateCTM(UIGraphicsGetCurrentContext(), -CGRectGetMinX(renderRect), CGRectGetMaxY(renderRect));
-	CGContextScaleCTM(UIGraphicsGetCurrentContext(), 1.0f, -1.0f);
-	
-	[viewToRender.layer renderInContext:UIGraphicsGetCurrentContext()];
-	
-	CGImageRef blurInputReference = [UIGraphicsGetImageFromCurrentImageContext() CGImage];
-	
-	UIGraphicsEndImageContext();
-	
-	self.hidden = NO; // make the hud visible again for display!
-	
-	// blur the rendered background
-	CIImage* inputImage = [CIImage imageWithCGImage:blurInputReference];
-	CIFilter* blur = [CIFilter filterWithName:@"CIGaussianBlur"];
-	[blur setDefaults];
-	[blur setValue:@(blurRadius) forKey:@"inputRadius"];
-	[blur setValue:inputImage forKey:@"inputImage"];
-	
-	CIImage* outputImage = [blur outputImage];
-	CIContext* context = [CIContext contextWithOptions:nil];
-	CGImageRef blurOutput = [context createCGImage:outputImage fromRect:outputImage.extent];
-	
+	UIGraphicsBeginImageContextWithOptions(renderRect.size, YES, 0);
+    
+    CGContextRef context = UIGraphicsGetCurrentContext();
+    
+    // Rotate the context
+    CGContextTranslateCTM(context, 0.0, renderRect.size.height);
+    CGContextScaleCTM(context, 1.0, -1.0);
+    
+    MB_DRAW_VIEW_IN_RECT(viewToRender, renderRect);
+    
+    UIImage *newImage = UIGraphicsGetImageFromCurrentImageContext();
+    
+    UIGraphicsEndImageContext();
+    
+    UIImage *outputImage = [newImage applyLightEffect];
+
+    self.hidden = NO;
+
 	// render the blured background - note we need to use the extent of the output image, as it is larger as the original rect!
-	CGContextDrawImage(UIGraphicsGetCurrentContext(), outputImage.extent, blurOutput);
-	
-	CGImageRelease(blurOutput);
+	CGContextDrawImage(UIGraphicsGetCurrentContext(), rect, outputImage.CGImage);
 }
 
 #pragma mark - KVO
@@ -786,6 +807,39 @@ static const CGFloat kDetailsLabelFontSize = 12.f;
 	if (animated) {
 		[UIView commitAnimations];
 	}
+}
+
+#pragma mark - Gesture recognizer methods
+
+- (void) setListenToTapGesture:(BOOL) value numberOfTaps:(int) numberOfTaps {
+    if (value) {
+        
+        // If the tap recognizer is already allocated, than no need to create another one
+        if (_tapRecognizer)
+            return;
+        
+        UITapGestureRecognizer* tapRecognizer = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(handleTap:)];
+        [tapRecognizer setNumberOfTapsRequired:numberOfTaps];
+        
+        [self addGestureRecognizer:tapRecognizer];
+        self.tapRecognizer = tapRecognizer;
+        
+#if !__has_feature(objc_arc)
+        [tapRecognizer release];
+#endif
+        
+    } else {
+        [self removeGestureRecognizer:_tapRecognizer];
+        self.tapRecognizer = nil;
+    }
+}
+
+- (void) handleTap: (UITapGestureRecognizer*)recognizer {
+    if (recognizer == _tapRecognizer) {
+        dispatch_async(dispatch_get_main_queue(), ^{
+            _tapGestureBlock();
+        });
+    }
 }
 
 @end
